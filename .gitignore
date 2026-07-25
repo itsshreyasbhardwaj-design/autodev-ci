@@ -1,0 +1,54 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# production
+build/
+dist/
+action/dist/
+
+# testing
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# caches
+.eslintcache
+*.tsbuildinfo
+.turbo/
+.vercel/
+
+# trigger.dev
+.trigger/
+
+# local artifacts produced by the CLI
+.autodev/
+
+# local agent tooling config
+.claude/
