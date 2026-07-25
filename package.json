@@ -73,7 +73,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.0",
