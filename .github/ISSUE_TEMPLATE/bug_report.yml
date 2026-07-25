@@ -1,0 +1,87 @@
+name: Bug report
+description: Something does not work the way it should
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. The most useful bug reports include a small
+        reproduction — for an analyzer producing a wrong result, that means the
+        few lines of diff that triggered it.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you observe?
+      placeholder: AutoDev CI reported a critical secret finding on a line that only contains a comment.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Steps, or the input that triggers it. Redact anything sensitive.
+      placeholder: |
+        1. Add this line to a .ts file:
+           const example = "..."
+        2. Run: autodev review --repo owner/name --pr 1
+        3. Observe the finding
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How are you running AutoDev CI?
+      options:
+        - GitHub Action
+        - CLI
+        - Self-hosted dashboard
+        - REST API
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: '0.1.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Analysis engine
+      options:
+        - deterministic (no API key)
+        - openrouter
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Re-run with `AUTODEV_DEBUG=1` for a stack trace. Redact tokens.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this
+          required: true
+        - label: I removed any credentials from the logs and reproduction above
+          required: true

@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest a capability or an improvement
+labels: ['enhancement', 'triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: >-
+        Describe the situation rather than the solution. Understanding the
+        problem usually surfaces a better answer than the one either of us
+        started with.
+      placeholder: >-
+        Our team keeps merging pull requests that add a config option without
+        documenting it, and we only notice weeks later.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like AutoDev CI to do?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area does this touch?
+      options:
+        - Pull request review / analyzers
+        - Quality gates
+        - Changelog and releases
+        - Documentation drift
+        - Repository health
+        - Dashboard
+        - REST API
+        - CLI or GitHub Action
+        - Notifications
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: Including "we do this manually today", which is useful signal.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to open a pull request for this

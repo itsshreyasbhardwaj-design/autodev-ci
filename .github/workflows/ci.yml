@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # A new push to the same ref supersedes the run in progress.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '11'
+
+jobs:
+  quality:
+    name: Lint, types and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Unit and integration tests
+        run: pnpm test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the application
+        run: pnpm build
+        env:
+          # The build must succeed with no configuration at all; that is the
+          # same path a new user takes on first run.
+          AUTODEV_AI_PROVIDER: deterministic
+
+      - name: Build the CLI bundle
+        run: pnpm build:cli
+
+      - name: Verify the CLI runs
+        run: |
+          node dist/cli/index.js --version
+          node dist/cli/index.js help > /dev/null
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: pnpm test:e2e --project=chromium
+        env:
+          AUTODEV_AI_PROVIDER: deterministic
+
+      - name: Upload the report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  action:
+    name: Verify the composite action
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate action.yml
+        run: |
+          # A malformed action.yml only fails when a consumer uses it, so
+          # parse it here and assert the contract the README documents.
+          python3 - <<'PY'
+          import sys, yaml
+
+          with open('action.yml') as handle:
+              action = yaml.safe_load(handle)
+
+          assert action['runs']['using'] == 'composite', 'must be a composite action'
+
+          for field in ('name', 'description', 'inputs', 'outputs', 'runs'):
+              assert field in action, f'action.yml is missing "{field}"'
+
+          for required in ('github-token', 'command', 'fail-on', 'ai-provider'):
+              assert required in action['inputs'], f'missing documented input "{required}"'
+
+          for required in ('score', 'verdict', 'findings'):
+              assert required in action['outputs'], f'missing documented output "{required}"'
+
+          print(f"action.yml OK: {len(action['inputs'])} inputs, {len(action['outputs'])} outputs")
+          PY
