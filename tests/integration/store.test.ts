@@ -270,3 +270,132 @@ describe('pagination', () => {
     expect(capped.items.length).toBeLessThanOrEqual(100);
   });
 });
+
+describe('pull requests, runs, artifacts and notifications', () => {
+  it('upserts a pull request by (repository, number)', async () => {
+    const repository = await store.upsertRepository(repositoryInput);
+
+    const base = {
+      repositoryId: repository.id,
+      number: 7,
+      title: 'Original title',
+      author: 'dev',
+      baseRef: 'main',
+      headRef: 'feature',
+      headSha: 'a'.repeat(40),
+      state: 'open' as const,
+      draft: false,
+      additions: 1,
+      deletions: 0,
+      changedFiles: 1,
+      url: null,
+    };
+
+    const first = await store.upsertPullRequest(base);
+    const second = await store.upsertPullRequest({
+      ...base,
+      title: 'Updated title',
+      state: 'merged',
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(second.title).toBe('Updated title');
+
+    expect(await store.getPullRequest(repository.id, 7)).toMatchObject({ state: 'merged' });
+    expect(await store.getPullRequest(repository.id, 999)).toBeNull();
+
+    const open = await store.listPullRequests(repository.id, { state: 'open' });
+    expect(open.total).toBe(0);
+
+    const merged = await store.listPullRequests(repository.id, { state: 'merged' });
+    expect(merged.total).toBe(1);
+  });
+
+  it('records and updates an analysis run', async () => {
+    const repository = await store.upsertRepository(repositoryInput);
+
+    const run = await store.createRun({
+      repositoryId: repository.id,
+      kind: 'review',
+      status: 'queued',
+      trigger: 'webhook',
+      startedAt: null,
+      finishedAt: null,
+      durationMs: null,
+      error: null,
+      payload: { pullNumber: 7 },
+    });
+
+    expect(run.status).toBe('queued');
+
+    const finished = await store.updateRun(run.id, { status: 'completed', durationMs: 1200 });
+    expect(finished?.status).toBe('completed');
+    expect(finished?.durationMs).toBe(1200);
+
+    expect(await store.updateRun('missing-id', { status: 'failed' })).toBeNull();
+    expect((await store.listRuns(repository.id)).total).toBe(1);
+    expect((await store.listRuns(undefined)).total).toBe(1);
+  });
+
+  it('stores artifacts and filters them by kind', async () => {
+    const repository = await store.upsertRepository(repositoryInput);
+
+    for (const kind of ['changelog', 'release-notes', 'migration-guide'] as const) {
+      await store.saveArtifact({
+        repositoryId: repository.id,
+        kind,
+        title: `${kind} 1.0.0`,
+        content: '# content',
+        subject: '1.0.0',
+        metadata: {},
+        pullRequestNumber: null,
+      });
+    }
+
+    expect((await store.listArtifacts(repository.id)).total).toBe(3);
+    expect((await store.listArtifacts(repository.id, 'changelog')).total).toBe(1);
+    expect((await store.listArtifacts(repository.id, 'docs-suggestion')).total).toBe(0);
+  });
+
+  it('records notification attempts', async () => {
+    const repository = await store.upsertRepository(repositoryInput);
+
+    await store.recordNotification({
+      repositoryId: repository.id,
+      channel: 'slack',
+      event: 'review.completed',
+      status: 'delivered',
+      target: 'https://hooks.slack.test/abc',
+      payload: {},
+      error: null,
+      attempts: 1,
+      deliveredAt: new Date(),
+    });
+
+    const page = await store.listNotifications();
+    expect(page.total).toBe(1);
+    expect(page.items[0]!.channel).toBe('slack');
+  });
+
+  it('reports its adapter kind and answers a ping', async () => {
+    expect(store.kind).toBe('memory');
+    expect(await store.ping()).toBe(true);
+  });
+
+  it('returns null when updating or dismissing something that does not exist', async () => {
+    expect(await store.updateRepository('nope', { active: false })).toBeNull();
+    expect(await store.updateReview('nope', { score: 1 })).toBeNull();
+    expect(await store.getReview('nope')).toBeNull();
+    expect(await store.dismissFinding('nope', 'reason')).toBeNull();
+    expect(await store.deleteRepository('nope')).toBe(false);
+    expect(await store.latestHealthSnapshot('nope')).toBeNull();
+  });
+
+  it('clears everything on reset', async () => {
+    await store.upsertRepository(repositoryInput);
+    expect((await store.listRepositories()).total).toBe(1);
+
+    store.reset();
+    expect((await store.listRepositories()).total).toBe(0);
+  });
+});

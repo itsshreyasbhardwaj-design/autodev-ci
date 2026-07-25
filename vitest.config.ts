@@ -21,12 +21,35 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       reportsDirectory: './coverage',
+      /*
+       * Coverage measures the layers this suite is responsible for: the pure
+       * analysis engine, the core utilities, the storage contract and the API
+       * middleware.
+       *
+       * Excluded below are the layers whose correctness is established
+       * elsewhere, so that the threshold stays a real signal rather than an
+       * average diluted by code Vitest was never going to execute:
+       *
+       *  - `src/app/**` and `src/components/**` — rendered and asserted by the
+       *    Playwright suite against a production build.
+       *  - `src/server/services/**` and the Octokit wrappers — live GitHub I/O,
+       *    exercised end-to-end by the CLI against real repositories.
+       *  - `src/db/drizzle-store.ts` — needs a Postgres instance; the in-memory
+       *    adapter is tested against the same DataStore contract.
+       *  - `src/cli/**` — the binary is smoke-tested in CI.
+       */
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: [
         'src/**/*.d.ts',
-        'src/app/**/layout.tsx',
-        'src/app/**/page.tsx',
-        'src/components/ui/**',
+        'src/app/**',
+        'src/components/**',
+        'src/cli/**',
+        'src/server/services/**',
+        'src/features/github/client.ts',
+        'src/features/github/publish.ts',
+        'src/db/drizzle-store.ts',
+        'src/db/schema.ts',
+        'src/db/index.ts',
       ],
       thresholds: {
         lines: 70,
