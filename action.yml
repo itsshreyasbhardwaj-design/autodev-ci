@@ -1,0 +1,152 @@
+name: 'AutoDev CI'
+description: 'AI-powered pull request review, changelog generation, documentation drift detection and repository health scoring.'
+author: 'AutoDev CI'
+
+branding:
+  icon: 'check-circle'
+  color: 'purple'
+
+inputs:
+  command:
+    description: 'Which command to run: review, changelog, release, health, or docs.'
+    required: false
+    default: 'review'
+
+  github-token:
+    description: >-
+      Token used to read the repository and post review comments. The default
+      GITHUB_TOKEN is sufficient; the job needs `pull-requests: write`.
+    required: true
+    default: ${{ github.token }}
+
+  fail-on:
+    description: >-
+      Exit non-zero when a finding at or above this severity is present:
+      critical, high, medium, low, or "never" to report without failing.
+    required: false
+    default: 'critical'
+
+  pull-request:
+    description: 'Pull request number. Read from the event payload when omitted.'
+    required: false
+
+  post-comment:
+    description: 'Post the review as a pull request comment.'
+    required: false
+    default: 'true'
+
+  ai-provider:
+    description: >-
+      "deterministic" (default, no API key, no cost) or "openrouter" to add
+      LLM-written explanations on top of the deterministic findings.
+    required: false
+    default: 'deterministic'
+
+  openrouter-api-key:
+    description: 'Required only when ai-provider is "openrouter".'
+    required: false
+
+  openrouter-model:
+    description: 'Model slug passed to OpenRouter.'
+    required: false
+    default: 'anthropic/claude-sonnet-4.5'
+
+  version:
+    description: 'Explicit version for the changelog and release commands.'
+    required: false
+
+  from-ref:
+    description: 'Starting ref for changelog and release. Defaults to the newest semver tag.'
+    required: false
+
+  to-ref:
+    description: 'Ending ref for changelog and release. Defaults to the default branch.'
+    required: false
+
+  min-health-score:
+    description: 'Fail the health command when the score falls below this.'
+    required: false
+    default: '0'
+
+  node-version:
+    description: 'Node.js version used to run the CLI.'
+    required: false
+    default: '20'
+
+outputs:
+  score:
+    description: 'Review score out of 100, or the health score for the health command.'
+    value: ${{ steps.autodev.outputs.score }}
+  verdict:
+    description: 'approve, comment, or request-changes.'
+    value: ${{ steps.autodev.outputs.verdict }}
+  findings:
+    description: 'Total number of findings.'
+    value: ${{ steps.autodev.outputs.findings }}
+  critical:
+    description: 'Number of critical findings.'
+    value: ${{ steps.autodev.outputs.critical }}
+  high:
+    description: 'Number of high-severity findings.'
+    value: ${{ steps.autodev.outputs.high }}
+  grade:
+    description: 'Health grade A–F, for the health command.'
+    value: ${{ steps.autodev.outputs.grade }}
+  version:
+    description: 'Version computed by the changelog and release commands.'
+    value: ${{ steps.autodev.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install AutoDev CI
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        # The action ships its dependencies pre-declared; a production-only
+        # install keeps this step to a few seconds.
+        npm install --omit=dev --no-audit --no-fund --loglevel=error
+
+    - name: Run AutoDev CI
+      id: autodev
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        AUTODEV_AI_PROVIDER: ${{ inputs.ai-provider }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        OPENROUTER_MODEL: ${{ inputs.openrouter-model }}
+        FORCE_COLOR: '1'
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+
+        ARGS=("${{ inputs.command }}")
+
+        if [ -n "${{ inputs.pull-request }}" ]; then
+          ARGS+=(--pr "${{ inputs.pull-request }}")
+        fi
+
+        case "${{ inputs.command }}" in
+          review)
+            ARGS+=(--fail-on "${{ inputs.fail-on }}")
+            if [ "${{ inputs.post-comment }}" != "true" ]; then
+              ARGS+=(--no-comment)
+            fi
+            ;;
+          changelog|release)
+            [ -n "${{ inputs.version }}" ] && ARGS+=(--version "${{ inputs.version }}")
+            [ -n "${{ inputs.from-ref }}" ] && ARGS+=(--from "${{ inputs.from-ref }}")
+            [ -n "${{ inputs.to-ref }}" ] && ARGS+=(--to "${{ inputs.to-ref }}")
+            ;;
+          health)
+            ARGS+=(--min-score "${{ inputs.min-health-score }}")
+            ;;
+        esac
+
+        node "${{ github.action_path }}/dist/cli/index.js" "${ARGS[@]}"
