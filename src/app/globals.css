@@ -1,0 +1,240 @@
+@import 'tailwindcss';
+
+/**
+ * AutoDev CI design tokens.
+ *
+ * The palette is built from the product's own vocabulary rather than a generic
+ * brand ramp: the five severity colours ARE the expressive system, and the
+ * interactive accent stays deliberately quiet so severity always reads loudest.
+ * The base is an ink-blue rather than neutral black — it keeps the severity
+ * hues from going muddy the way they do on pure grey.
+ */
+@theme {
+  /* Surfaces — blue-black, layered */
+  --color-ink-950: #070a12;
+  --color-ink-900: #0b0f1a;
+  --color-ink-850: #101522;
+  --color-ink-800: #151b2c;
+  --color-ink-700: #1c2438;
+  --color-line: #212b43;
+  --color-line-bright: #2c3855;
+
+  /* Text */
+  --color-fg: #e8edf8;
+  --color-fg-muted: #93a1bd;
+  --color-fg-subtle: #64718c;
+
+  /* Interactive accent — used sparingly, never competes with severity */
+  --color-signal: #6d7cff;
+  --color-signal-bright: #8b96ff;
+  --color-signal-dim: #4b58cc;
+
+  /* Severity ramp — the expressive core of the system */
+  --color-sev-critical: #ff5d5d;
+  --color-sev-high: #ff9245;
+  --color-sev-medium: #ffcb4f;
+  --color-sev-low: #45d6c4;
+  --color-sev-info: #7c8fff;
+
+  /* Diff gutter semantics */
+  --color-add: #3fb950;
+  --color-remove: #f85149;
+
+  /* Typography */
+  --font-display: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    margin: 0;
+    min-height: 100dvh;
+  }
+
+  /*
+   * Ambient field. Two very low-opacity radial washes sit behind everything so
+   * the ink base has depth without a visible "gradient blob".
+   */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(60rem 40rem at 12% -10%, rgb(109 124 255 / 0.09), transparent 65%),
+      radial-gradient(45rem 35rem at 92% 8%, rgb(69 214 196 / 0.05), transparent 60%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.08;
+    margin: 0;
+  }
+
+  ::selection {
+    background: rgb(109 124 255 / 0.3);
+    color: var(--color-fg);
+  }
+
+  /* Keyboard focus must always be visible; the ring is never removed. */
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink-950);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-bright);
+    border-radius: 6px;
+    border: 2px solid var(--color-ink-950);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-subtle);
+  }
+}
+
+@layer components {
+  /*
+   * Glass surface. The top hairline highlight is what actually reads as glass —
+   * blur alone just looks like a translucent box.
+   */
+  .glass {
+    position: relative;
+    background: linear-gradient(180deg, rgb(21 27 44 / 0.72), rgb(11 15 26 / 0.72));
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+  }
+
+  .glass::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(232 237 248 / 0.14) 20%,
+      rgb(232 237 248 / 0.14) 80%,
+      transparent
+    );
+    pointer-events: none;
+  }
+
+  /*
+   * The severity spine: a vertical rail echoing a diff gutter. This is the
+   * signature element — it appears on every finding and ties the whole product
+   * to the artifact it produces.
+   */
+  .spine {
+    position: relative;
+    padding-left: 1.125rem;
+  }
+
+  .spine::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.15rem;
+    bottom: 0.15rem;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--spine-color, var(--color-line-bright));
+    box-shadow: 0 0 12px -2px var(--spine-color, transparent);
+  }
+
+  /* Mono utility label — the terminal voice used for data and eyebrows. */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-fg-subtle);
+  }
+
+  .hairline {
+    border-top: 1px solid var(--color-line);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Page-load stagger. Elements set --delay to sequence in. */
+  .rise {
+    animation: rise 0.7s var(--ease-out-expo) both;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+}
+
+/* Anyone who asks for less motion gets none of it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
