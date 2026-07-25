@@ -421,7 +421,7 @@ Three design decisions worth knowing about:
 ```bash
 pnpm install
 pnpm dev              # dashboard at :3000
-pnpm test             # unit + integration (208 tests)
+pnpm test             # unit + integration (266 tests)
 pnpm test:e2e         # Playwright against a production build
 pnpm typecheck        # strict TypeScript, no errors
 pnpm lint             # ESLint
