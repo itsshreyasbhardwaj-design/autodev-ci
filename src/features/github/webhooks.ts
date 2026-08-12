@@ -132,16 +132,23 @@ export function readWebhookHeaders(headers: Headers): WebhookHeaders {
  * Verifies the `X-Hub-Signature-256` HMAC.
  *
  * Throws when a secret is configured but the signature is absent or wrong. If
- * no secret is configured we log loudly and allow the request: that is the
- * local-development path, and refusing would make the platform impossible to
- * try. Production deployments must set `GITHUB_WEBHOOK_SECRET`.
+ * no secret is configured, that's the local-development path: we log loudly
+ * and allow the request, since refusing would make the platform impossible to
+ * try. In production, an unset secret means signature verification is
+ * silently disabled — so this refuses instead, rather than only warning.
  */
 export async function verifyWebhookSignature(
   rawBody: string,
   signature: string | null,
   secret: string | undefined,
+  isProduction: boolean,
 ): Promise<void> {
   if (!secret) {
+    if (isProduction) {
+      throw new UnauthorizedError(
+        'GITHUB_WEBHOOK_SECRET is not configured — refusing to accept unverified webhooks in production.',
+      );
+    }
     logger().warn(
       'Webhook received without GITHUB_WEBHOOK_SECRET configured — signature not verified. Do not run this way in production.',
     );

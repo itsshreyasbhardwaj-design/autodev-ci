@@ -52,3 +52,11 @@ pnpm-debug.log*
 
 # local agent tooling config
 .claude/
+
+# Security hardening: secret-shaped files, none currently present
+*.pem
+*.key
+credentials*.json
+service-account*.json
+*.sqlite
+*.db

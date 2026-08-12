@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const rawBody = await request.text();
 
   try {
-    await verifyWebhookSignature(rawBody, signature, env().GITHUB_WEBHOOK_SECRET);
+    await verifyWebhookSignature(rawBody, signature, env().GITHUB_WEBHOOK_SECRET, env().isProduction);
   } catch (error) {
     log.warn('Rejected webhook with invalid signature', { event, deliveryId });
     const appError = toAppError(error);

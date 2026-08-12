@@ -47,35 +47,43 @@ function pullRequestPayload(overrides: Record<string, unknown> = {}) {
 describe('webhook signature verification', () => {
   it('accepts a correctly signed body', async () => {
     const body = JSON.stringify(pullRequestPayload());
-    await expect(verifyWebhookSignature(body, sign(body), SECRET)).resolves.toBeUndefined();
+    await expect(
+      verifyWebhookSignature(body, sign(body), SECRET, false),
+    ).resolves.toBeUndefined();
   });
 
   it('rejects a body signed with the wrong secret', async () => {
     const body = JSON.stringify(pullRequestPayload());
-    await expect(verifyWebhookSignature(body, sign(body, 'wrong'), SECRET)).rejects.toThrow(
-      UnauthorizedError,
-    );
+    await expect(
+      verifyWebhookSignature(body, sign(body, 'wrong'), SECRET, false),
+    ).rejects.toThrow(UnauthorizedError);
   });
 
   it('rejects a tampered body', async () => {
     const body = JSON.stringify(pullRequestPayload());
     const signature = sign(body);
     const tampered = body.replace('"number":7', '"number":8');
-    await expect(verifyWebhookSignature(tampered, signature, SECRET)).rejects.toThrow(
+    await expect(verifyWebhookSignature(tampered, signature, SECRET, false)).rejects.toThrow(
       UnauthorizedError,
     );
   });
 
   it('rejects a missing signature when a secret is configured', async () => {
-    await expect(verifyWebhookSignature('{}', null, SECRET)).rejects.toThrow(
+    await expect(verifyWebhookSignature('{}', null, SECRET, false)).rejects.toThrow(
       /Missing X-Hub-Signature-256/,
     );
   });
 
-  it('allows unsigned deliveries when no secret is configured', async () => {
-    // This is the local-development path; the health endpoint warns about it
-    // loudly in production.
-    await expect(verifyWebhookSignature('{}', null, undefined)).resolves.toBeUndefined();
+  it('allows unsigned deliveries when no secret is configured outside production', async () => {
+    await expect(
+      verifyWebhookSignature('{}', null, undefined, false),
+    ).resolves.toBeUndefined();
+  });
+
+  it('refuses unsigned deliveries when no secret is configured in production', async () => {
+    await expect(verifyWebhookSignature('{}', null, undefined, true)).rejects.toThrow(
+      UnauthorizedError,
+    );
   });
 });
 
